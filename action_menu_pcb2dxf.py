@@ -207,6 +207,84 @@ from math import sqrt, atan2, degrees, sin, cos, radians
 import wx
 import pcbnew
 from pcbnew import *
+constlaylist = ['F.Cu','B.Cu','B.Adhes','F.Adhes','B.Paste','F.Paste','B.SilkS','F.SilkS','B.Mask','F.Mask','Dwgs','Cmts','Eco1','Eco2','Edge','B.CrtYd','F.CrtYd','B.Fab','F.Fab']
+constnotlaylist = ['F.Cu','B.Cu','B.SilkS','F.SilkS']
+laylist=[]
+class MyFrame(wx.Frame):
+
+        
+    def __init__(self):
+        wx.Frame.__init__(self,None,wx.ID_ANY,"选择输出图层",(-1,-1),(-1,-1),wx.MINIMIZE_BOX|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER|wx.SYSTEM_MENU|wx.CAPTION|wx.CLOSE_BOX|wx.CLIP_CHILDREN |wx.STAY_ON_TOP)
+        #居中
+        panel=wx.Panel(self)#创建画板，控件容器
+        cnt = 0;
+        raw = 1
+        checklist=[]
+        for lay in constlaylist:
+            checklist.append(wx.CheckBox(panel,-1,lay,pos=(20+80*cnt,raw*20),size=(80,-1)))
+            cnt = cnt+1
+            if cnt == 5:
+                cnt = 0
+                raw = raw+1
+        for cb in checklist:
+            if cb.GetLabel() not in constnotlaylist:
+                cb.SetValue(True)
+                laylist.append(cb.GetLabel())
+        self.Bind(wx.EVT_CHECKBOX,self.onChecked) 
+        button = wx.Button(panel, pos=(20,20*(raw+2)),label = "OK")
+        button.Bind(wx.EVT_BUTTON, self.OnOK)      
+        button1 = wx.Button(panel, pos=(180,20*(raw+2)),label = "Cannel")
+        button1.Bind(wx.EVT_BUTTON, self.OnClose)             
+        self.Center()
+        #显示
+        self.Show()
+    def onChecked(self, event):
+        #self.do()
+        cb = event.GetEventObject()
+        if cb.GetValue() == True :
+            laylist.append(cb.GetLabel())
+        else:
+            laylist.remove(cb.GetLabel())
+    def OnClose(self, event):
+        self.Destroy()
+    def OnOK(self, event):
+        self.do(laylist)
+        self.Destroy()
+    def do(self,laylist):  
+        fileName = GetBoard().GetFileName()
+        if len(fileName)==0:
+            wx.LogMessage("a board needs to be saved/loaded!")
+        else:
+            dirpath = os.path.abspath(os.path.expanduser(fileName))
+            path, fname = os.path.split(dirpath)
+            ext = os.path.splitext(os.path.basename(fileName))[1]
+            name = os.path.splitext(os.path.basename(fileName))[0]
+
+            LogMsg="reading from "+ dirpath
+            out_filename=path+os.sep+name+".dxf"
+            LogMsg+="writing to "+out_filename
+            content=[]
+            txtFile = open(fileName,"r")
+            content = txtFile.readlines()
+            content.append(" ")
+            txtFile.close()
+            
+            #wx.MessageDialog(None, 'This is a message box. ONLY TEST!', 'Test', wx.OK | wx.ICON_INFORMATION).ShowModal()
+            #wx.MessageDialog(None, 'This is a message box. ONLY TEST!', content, wx.OK | wx.ICON_INFORMATION).ShowModal()
+            #dlg = wx.MessageBox( content, 'Confirm',  wx.OK | wx.CANCEL | wx.ICON_INFORMATION )
+            #found_selected=False
+            #board = pcbnew.GetBoard()
+            
+            dlg=wx.MessageBox( 'Only SAVED board file will be exported to DXF file', 'Confirm',  wx.OK | wx.CANCEL | wx.ICON_INFORMATION )
+            if dlg == wx.OK:
+                if os.path.isfile(out_filename):
+                    dlg=wx.MessageBox( 'Overwrite DXF file?', 'Confirm', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION )
+                    if dlg == wx.YES:
+                        export_dxf(content, out_filename,laylist)
+                else:
+                    export_dxf(content, out_filename,laylist)
+        
+                        
 
 class pcb2dxf( pcbnew.ActionPlugin ):
     """
@@ -221,47 +299,24 @@ class pcb2dxf( pcbnew.ActionPlugin ):
         self.description should be a comprehensive description
           of the plugin
         """
-        self.name = "export technical layers of pcb to DXF (saved board)"
+        self.name = "export layers of pcb to DXF (saved board)"
         self.category = "export PCB"
         self.description = "export technical layers of pcb to DXF (saved board)"
 
     def Run( self ):
-        fileName = GetBoard().GetFileName()
-        if len(fileName)==0:
-            wx.LogMessage("a board needs to be saved/loaded!")
-        else:
-            dirpath = os.path.abspath(os.path.expanduser(fileName))
-            path, fname = os.path.split(dirpath)
-            ext = os.path.splitext(os.path.basename(fileName))[1]
-            name = os.path.splitext(os.path.basename(fileName))[0]
-    
-            LogMsg="reading from "+ dirpath
-            out_filename=path+os.sep+name+".dxf"
-            LogMsg+="writing to "+out_filename
-            content=[]
-            txtFile = open(fileName,"r")
-            content = txtFile.readlines()
-            content.append(" ")
-            txtFile.close()
-            
-            #wx.MessageDialog(None, 'This is a message box. ONLY TEST!', 'Test', wx.OK | wx.ICON_INFORMATION).ShowModal()
-            #wx.MessageDialog(None, 'This is a message box. ONLY TEST!', content, wx.OK | wx.ICON_INFORMATION).ShowModal()
-            #found_selected=False
-            #board = pcbnew.GetBoard()
-            
-            dlg=wx.MessageBox( 'Only SAVED board file will be exported to DXF file', 'Confirm',  wx.OK | wx.CANCEL | wx.ICON_INFORMATION )
-            if dlg == wx.OK:
-                if os.path.isfile(out_filename):
-                    dlg=wx.MessageBox( 'Overwrite DXF file?', 'Confirm', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION )
-                    if dlg == wx.YES:
-                        export_dxf(content, out_filename)
-                else:
-                    export_dxf(content, out_filename)
+        frm2=MyFrame() 
         
+class Point:                    # 定义名为Point的类
+    def __init__(self,x,y):        # 初始化方法
+        self.x = x               # 设定x坐标
+        self.y = y               # 设定y坐标        
         
+def point_angle(org,re,rot_angle):
+    r1=sqrt((re.x-org.x)**2+(re.y-org.y)**2)   
+    base_angle1=degrees(atan2(re.y-org.y, re.x-org.x))
+    return Point(org.x+r1*cos(radians(rot_angle+base_angle1)),org.y+r1*sin(radians(rot_angle+base_angle1)))
 
-        
-def export_dxf(content,out_filename):
+def export_dxf(content,out_filename,laylist):
         # quote_layer True to move all quote on special layer
     quote_layer=False
     align="LEFT"
@@ -280,25 +335,90 @@ def export_dxf(content,out_filename):
                 #say (plcmt)
                 #say (plcmt[0]+" x off");say (plcmt[1]+" y off")
             create=0
+            if "pad" in line:
+                if "F.Cu" in laylist or "B.Cu" in laylist:
+                    if "F.Cu" in line and "F.Cu" in laylist:
+                        layer="F.Cu"; color=11; create=1
+                    elif "B.Cu" in line and "B.Cu" in laylist:
+                        layer="B.Cu"; color=12; create=1
+                    else:
+                        layer="*.Cu"; color=13; create=1
+                    if create==1:
+                        coords=line.split('(',1)[-1]
+                        coords=coords.split(" ")
+                        #say(coords[4]+";"+coords[5][:-1]+" "+layer)
+                        #wx.MessageDialog(None, 'This is a message box. ONLY TEST!', string(len(coords)), wx.OK | wx.ICON_INFORMATION).ShowModal())
+                        if "(drill" in line: 
+                            if len (plcmt)<=2:
+                                cx=float(coords[5])+float(plcmt[0])
+                                cy=-float(coords[6].split(')')[0])-float(plcmt[1])
+                                d = coords.index('(drill')
+                                r =(float(coords[d+1].split(')')[0]))/2.0
+                                dxf.add_circle((cx, cy), r, layer, color, linetype=None)
+                            else:
+                                rot_angle=float(plcmt[2])
+                                crx=float(plcmt[0]);cry=-float(plcmt[1])
+                                xs1=float(coords[5])+float(plcmt[0]);ys1=-float(coords[6].split(')')[0])-float(plcmt[1])
+                                r1=sqrt((crx-xs1)**2+(cry-ys1)**2)   
+                                base_angle1=degrees(atan2(ys1-cry, xs1-crx))
+                                xs=crx+r1*cos(radians(rot_angle+base_angle1));ys=cry+r1*sin(radians(rot_angle+base_angle1))
+                                d = coords.index('(drill')
+                                r =(float(coords[d+1].split(')')[0]))/2.0
+                                dxf.add_circle((xs, ys), r, layer, color, linetype=None)
+                        if "circle" in line:
+                            if len (plcmt)<=2:                        
+                                cx=float(coords[5])+float(plcmt[0])
+                                cy=-float(coords[6].split(')')[0])-float(plcmt[1])
+                                d = coords.index('(size')
+                                r =(float(coords[d+1]))/2.0
+                                dxf.add_circle((cx, cy), r, layer, color, linetype=None)
+                            else:
+                                rot_angle=float(plcmt[2])
+                                crx=float(plcmt[0]);cry=-float(plcmt[1])
+                                xs1=float(coords[5])+float(plcmt[0]);ys1=-float(coords[6].split(')')[0])-float(plcmt[1])
+                                r1=sqrt((crx-xs1)**2+(cry-ys1)**2)   
+                                base_angle1=degrees(atan2(ys1-cry, xs1-crx))
+                                xs=crx+r1*cos(radians(rot_angle+base_angle1));ys=cry+r1*sin(radians(rot_angle+base_angle1))
+                                d = coords.index('(size')
+                                r =(float(coords[d+1].split(')')[0]))/2.0
+                                dxf.add_circle((xs, ys), r, layer, color, linetype=None)
+                        if "rect" in line:
+                            if len (plcmt)<=2:                                        
+                                rot_angle=0 
+                            else:
+                                rot_angle=float(plcmt[2])
+                                
+                            d = coords.index('(size')
+                            l =(float(coords[d+1]))/2.0
+                            h =(float(coords[d+2].split(')')[0]))/2.0 
+                            dx = coords.index('(at') 
+                            if ')' in coords[dx+3]:
+                                #print(coords[dx+3])
+                                rot_angle1 = float(coords[dx+3].split(')')[0])
+                            else:
+                                rot_angle1 = 0
+                                
+                            rp = Point(float(coords[5])+float(plcmt[0]),-float(coords[6].split(')')[0])-float(plcmt[1]))    
+                            ap = Point(float(plcmt[0]),-float(plcmt[1]))
+                            p1 = point_angle(rp,Point(rp.x-l,rp.y-h),rot_angle1-rot_angle)
+                            p2 = point_angle(rp,Point(rp.x+l,rp.y-h),rot_angle1-rot_angle)
+                            p3 = point_angle(rp,Point(rp.x+l,rp.y+h),rot_angle1-rot_angle)
+                            p4 = point_angle(rp,Point(rp.x-l,rp.y+h),rot_angle1-rot_angle)
+
+                            p11 = point_angle(ap,p1,rot_angle)
+                            p21 = point_angle(ap,p2,rot_angle)
+                            p31 = point_angle(ap,p3,rot_angle)
+                            p41 = point_angle(ap,p4,rot_angle)
+                            dxf.add_line((p11.x,p11.y), (p21.x,p21.y), layer, color, linetype=None)
+                            dxf.add_line((p21.x,p21.y), (p31.x,p31.y), layer, color, linetype=None)
+                            dxf.add_line((p31.x,p31.y), (p41.x,p41.y), layer, color, linetype=None)
+                            dxf.add_line((p41.x,p41.y), (p11.x,p11.y), layer, color, linetype=None)
+                                
+            create=0
             if "fp_line" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -322,8 +442,8 @@ def export_dxf(content,out_filename):
                         #say(str(r1)+ " r1");say(str(r2)+ " r2")
                         #say(str(cx)+ " cx");say(str(cy)+ " cy")
                         #say (rot_angle);say (cx); say(cy)
-                        xs=crx-r1*cos(radians(-rot_angle+base_angle1));ys=cry-r1*sin(radians(-rot_angle+base_angle1))
-                        xe=crx-r2*cos(radians(-rot_angle+base_angle2));ye=cry-r2*sin(radians(-rot_angle+base_angle2))
+                        xs=crx+r1*cos(radians(rot_angle+base_angle1));ys=cry+r1*sin(radians(rot_angle+base_angle1))
+                        xe=crx+r2*cos(radians(rot_angle+base_angle2));ye=cry+r2*sin(radians(rot_angle+base_angle2))
                         #say(str(xs)+" xs "+str(ys)+" ys "+str(xe)+" xe "+str(ye)+" ye");
                     #xs=float(coords[4]);ys=-float(coords[5][:-1])
                     #xe=float(coords[7]);ye=-float(coords[8][:-1])
@@ -334,24 +454,9 @@ def export_dxf(content,out_filename):
                     dxf.add_line((xs,ys), (xe,ye), layer, color, linetype=None)
             create=0
             if "fp_circle" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -387,24 +492,9 @@ def export_dxf(content,out_filename):
                     #dxf.add_circle((cx, cy), r, layer, color, linetype=None)
             create=0
             if "fp_arc" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -457,24 +547,9 @@ def export_dxf(content,out_filename):
                         #say(str(xs)+" xs "+str(ys)+" ys "+str(xe)+" xe "+str(ye)+" ye");
             create=0
             if "gr_line" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -488,24 +563,9 @@ def export_dxf(content,out_filename):
                     dxf.add_line((xs,ys), (xe,ye), layer, color, linetype=None)
             create=0
             if "gr_circle" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -519,24 +579,9 @@ def export_dxf(content,out_filename):
                     dxf.add_circle((cx, cy), r, layer, color, linetype=None)
             create=0
             if "gr_arc" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; create=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; create=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; create=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; create=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; create=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; create=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; create=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; create=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; create=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); create=1
                 if create==1:
                     coords=line.split('(',1)[-1]
                     coords=coords.split(" ")
@@ -563,24 +608,9 @@ def export_dxf(content,out_filename):
                     dxf.add_arc(center, r, startAngle, endAngle, layer, color, linetype=None)
             #createTxt=0
             if "gr_text" in line:
-                if "Dwgs" in line:
-                    layer=0; color=None; createTxt=1
-                if "Cmts" in line:
-                    layer="Cmts"; color=1; createTxt=1
-                if "Edge" in line:
-                    layer="Edge"; color=2; createTxt=1
-                if "Eco1" in line:
-                    layer="Eco1"; color=3; createTxt=1
-                if "Eco2" in line:
-                    layer="Eco2"; color=4; createTxt=1
-                if "F.Fab" in line:
-                    layer="FFab"; color=5; createTxt=1
-                if "B.Fab" in line:
-                    layer="BFab"; color=6; createTxt=1
-                if "F.CrtYd" in line:
-                    layer="FCrtYd"; color=7; createTxt=1
-                if "B.CrtYd" in line:
-                    layer="BCrtYd"; color=8; createTxt=1
+                for lay in laylist:
+                    if lay in line:
+                        layer=lay; color=10*laylist.index(lay); createTxt=1
                 if createTxt==1:        
                     #(gr_text Rotate (at 325.374 52.705 15) (layer Eco2.User)
                     line=line.strip().split("(gr_text ")[1].split("(at")
@@ -634,6 +664,10 @@ def export_dxf(content,out_filename):
 
 pcb2dxf().register()
 
+if __name__ == "__main__":
+    app = wx.App(False)  # Create a new app, don't redirect stdout/stderr to a window.
+    frm2=MyFrame()
+    app.MainLoop()
 PREFACE = """  0
 SECTION
   2
